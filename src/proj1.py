@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 from scipy.io import wavfile
 from scipy.signal import spectrogram, lfilter, freqz, tf2zpk
 from scipy.stats import pearsonr
+from scipy.ndimage.interpolation import rotate
 import statistics
+import math
 
 # Task 3: reading a sentence + spectogram creation
 def task3_getSegments(toRead):
@@ -80,7 +82,7 @@ def task3_PlotGraph(toRead):
 
         plt.pcolormesh(t,f,sgr_log)
 
-        plt.gca().set_title('sa1.wav')
+        plt.gca().set_title('sx84.wav')
         plt.gca().set_xlabel('Time [s]')
         plt.gca().set_ylabel('Frequency [Hz]')
 
@@ -116,6 +118,11 @@ def task4(toRead):
 
         features.append(temp)
 
+    # deleting the imaginary part
+    for i in range(0, len(features)):
+        for j in range(0, len(features[i])):
+            features[i][j] = features[i][j].real
+
     return features
 
 # Task 5: Calculating score by pearson.
@@ -125,6 +132,9 @@ def task5(sentence, query):
 
     resultScore = []
     nOfSteps = len(paramsSentence) - len(paramsQuery)
+
+    if(nOfSteps < 0):
+        return None
 
     for x in range(0, nOfSteps):
         toCompare = len(paramsQuery)
@@ -138,6 +148,7 @@ def task5(sentence, query):
 
             temp.append(a)
 
+            # getting just first part of pearson result
             temp[y] = temp[y][0]
 
         for y in range(0, toCompare):
@@ -151,54 +162,49 @@ def task5(sentence, query):
 # Task 6: plotting all the graphs..
 def task6(sentence, query1, query2):
     fs, data = wavfile.read(sentence)
-
-
     t = np.arange(data.size)/fs
 
     # To check values of threshold, UNCOMMENT THIS
-    #checkThresh(query1, query2, t)
+    checkThresh(query1, query2, t)
 
     # features for spectogram
     features = task4(sentence)
-    arr = np.array(features);
-    f, t, sgr = spectrogram(arr, 16000)
-    # prevod na PSD
-    # (ve spektrogramu se obcas objevuji nuly, ktere se nelibi logaritmu, proto +1e-20)
-    sgr_log = 10 * np.log10(sgr+1e-20)
+    features = rotate(features, angle=90)
 
-    
-    plt.pcolormesh(sgr_log)
 
-    #x = np.arange(features.size)/fs
-    #f, t, sgr = spectrogram(features, nfft=512)
-    fromm = 0
-    from_samples = 0
-    nmb = 0.01
-    to_samples = int(0.01 * 16000)
-    arr = np.array(features)
-    s_seg = arr[from_samples:to_samples]
-    N = s_seg.size
-    print(N)
-    #t3 = np.arange(len(features[]))
-    #f, t, sgr = spectrogram(features, 16000)
+    # function changes values so that they are the same as for signal
+    featx, x1, x2 = editXaxis(features, query1, query2)
+
+    xInt = range(0, math.ceil(len(data)/fs)+1)
+    maxXval = max(xInt)
+
     fig, ax = plt.subplots(3)
-    fig.suptitle('\"Householder\" and \"Outstanding\" vs sa1.wav')
+    fig.suptitle('\"Householder\" and \"Outstanding\" vs sx84.wav')
 
+    # Signal
     ax[0].plot(t,data)
+    ax[0].set_xlabel('t')
     ax[0].set_ylabel('signal')
+    ax[0].set_xlim(0, maxXval)
+
+    # Features
     ax[1].pcolormesh(features)
-
+    ax[1].set_xlabel('t')
     ax[1].set_ylabel('features')
-    # Score
-    ax[2].plot(np.arange(s_seg.size)/fs, s_seg, label = 'Householder')
-    ax[2].plot(query2, label = 'Outstanding')
-    ax[2].set(xlim=(0, len(t)/fs))
-    ax[2].grid(alpha=0.5, linestyle='--')
-    ax[2].set_xlabel('t')
-    ax[2].set_ylabel('scores')
-    ax[2].legend()
+    #ax[1].set_xlim(0, maxXval)
 
+    # Score
+    ax[2].plot(x1, query1, label = 'Householder')
+    ax[2].plot(x2, query2, label = 'Outstanding')
+    ax[2].set_ylabel('scores')
+    ax[2].set_xlabel('t')
+    ax[2].set_xlim(0, maxXval)
+    ax[2].grid(alpha=1, linestyle='--')
+    ax[2].legend()
+    fig.set_size_inches(14.5, 8.5)
+    plt.subplots_adjust(hspace = 0.5)
     plt.show()
+
 
 def checkThresh(query1, query2, t):
     # checking if we found hit
@@ -219,11 +225,34 @@ def checkThresh(query1, query2, t):
 
             print(res)
             print('\n')
-#segs = task3_getSegments('../sentences/sa1.wav')
-#task4('../sentences/sa1.wav')
-#paramsOfWav = task4(data)
 
-a = task5('../sentences/sx84.wav', '../queries/q1.wav')
-b = task5('../sentences/sx84.wav', '../queries/q2.wav')
+def editXaxis(features, query1, query2):
+    newXf = []
+    newXq1 = []
+    newXq2 = []
 
-task6('../sentences/sx84.wav', a, b)
+    rangeF = len(features)
+    rangeQ1 = len(query1)
+    rangeQ2 = len(query2)
+
+
+    for i in range(0, rangeF):
+        newXf.append(i/100)
+
+    for i in range(0, rangeQ1):
+        newXq1.append(i/100)
+
+    for i in range(0, rangeQ2):
+        newXq2.append(i/100)
+
+    return newXf, newXq1, newXq2
+
+
+# MAIN #
+
+# Note: For now, you have to edit these lines separately for every sentence. I stucked in file reading in python
+#       I would rework it, but there are so many projects.... sorry for that
+a = task5('../sentences/sx174.wav', '../queries/q1.wav')
+b = task5('../sentences/sx174.wav', '../queries/q2.wav')
+
+task6('../sentences/sx174.wav', a, b)
